@@ -20,10 +20,13 @@ function App() {
 
   // 1. Auth state handling
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
       setUser(session?.user ?? null);
       setLoading(false);
-    });
+    };
+
+    initAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
@@ -56,10 +59,14 @@ function App() {
       const saved = localStorage.getItem('tax-app-transactions');
       if (saved) {
         try {
-          setTransactions(JSON.parse(saved));
+          const parsed = JSON.parse(saved);
+          setTransactions(Array.isArray(parsed) ? parsed : []);
         } catch (e) {
           console.error('Failed to parse localStorage', e);
+          setTransactions([]);
         }
+      } else {
+        setTransactions([]);
       }
     }
   }, [user, fetchTransactions]);
@@ -71,13 +78,13 @@ function App() {
       if (localData) {
         try {
           const parsed = JSON.parse(localData);
-          if (parsed.length > 0) {
+          if (Array.isArray(parsed) && parsed.length > 0) {
             migrateData(parsed);
           } else {
             localStorage.removeItem('tax-app-transactions');
           }
         } catch (e) {
-          console.error('Migration failed', e);
+          console.error('Migration check failed', e);
         }
       }
     }
@@ -96,20 +103,27 @@ function App() {
       localStorage.removeItem('tax-app-transactions');
       fetchTransactions();
       alert('ローカルデータをオンラインに同期しました！');
+    } else {
+      console.error('Migration error:', error);
     }
   };
 
   const handleAddTransaction = async (newTransaction: Omit<Transaction, 'id'>) => {
+    const id = crypto.randomUUID();
     const transaction: Transaction = {
       ...newTransaction,
-      id: crypto.randomUUID(),
+      id,
       user_id: user?.id
     };
 
     if (user) {
       const { error } = await supabase.from('transactions').insert([transaction]);
-      if (error) console.error('Error adding transaction:', error);
-      else fetchTransactions();
+      if (error) {
+        console.error('Error adding transaction:', error);
+        alert('保存に失敗しました。');
+      } else {
+        fetchTransactions();
+      }
     } else {
       const updated = [transaction, ...transactions];
       setTransactions(updated);
@@ -165,10 +179,10 @@ function App() {
     transactions.forEach(t => {
       const row = [
         `="${t.id}"`,
-        t.date,
+        t.date || '',
         t.type === 'income' ? '収入' : '支出',
-        t.amount,
-        `"${t.description.replace(/"/g, '""')}"`,
+        t.amount || 0,
+        `"${(t.description || '').replace(/"/g, '""')}"`,
         `"${(t.category || '').replace(/"/g, '""')}"`
       ];
       csvRows.push(row.join(','));
