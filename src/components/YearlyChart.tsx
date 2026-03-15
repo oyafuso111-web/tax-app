@@ -113,6 +113,7 @@ export function YearlyChart({ transactions, currentMonth }: YearlyChartProps) {
                     </ResponsiveContainer>
                 </div>
             </div>
+            <p className="scroll-hint">← 横スクロールで各月の推移を確認できます →</p>
         </div>
     );
 }
