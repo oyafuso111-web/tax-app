@@ -8,57 +8,81 @@ interface MonthlyCategoryTableProps {
 }
 
 export function MonthlyCategoryTable({ transactions, currentMonth }: MonthlyCategoryTableProps) {
-    const categoryTotals = useMemo(() => {
-        const totals: Record<string, number> = {};
-        let grandTotal = 0;
+    const currentYear = currentMonth.split('-')[0];
+    const currentMonthNum = currentMonth.split('-')[1];
+
+    const categoryStats = useMemo(() => {
+        const monthlyTotals: Record<string, number> = {};
+        const yearlyTotals: Record<string, number> = {};
+        let monthlyGrandTotal = 0;
+        let yearlyGrandTotal = 0;
 
         transactions.forEach(t => {
-            if (t.date.startsWith(currentMonth)) {
-                // We only aggregate expenses for category breakdown (usually)
-                if (t.type === 'expense') {
-                    const category = t.category || '未分類';
-                    totals[category] = (totals[category] || 0) + t.amount;
-                    grandTotal += t.amount;
+            if (t.type === 'expense') {
+                const category = t.category || '未分類';
+                const dateStr = t.date || '';
+
+                // Accumulate yearly
+                if (dateStr.startsWith(currentYear)) {
+                    yearlyTotals[category] = (yearlyTotals[category] || 0) + t.amount;
+                    yearlyGrandTotal += t.amount;
+
+                    // Accumulate monthly
+                    if (dateStr.startsWith(currentMonth)) {
+                        monthlyTotals[category] = (monthlyTotals[category] || 0) + t.amount;
+                        monthlyGrandTotal += t.amount;
+                    }
                 }
             }
         });
 
-        // Convert to array and sort by amount desc
-        return {
-            items: Object.entries(totals)
-                .map(([name, amount]) => ({ name, amount }))
-                .sort((a, b) => b.amount - a.amount),
-            grandTotal
-        };
-    }, [transactions, currentMonth]);
+        // Get unique categories and sort them
+        const allCategories = Array.from(new Set([
+            ...Object.keys(monthlyTotals),
+            ...Object.keys(yearlyTotals)
+        ])).sort();
 
-    if (categoryTotals.items.length === 0) {
-        return null; // Don't show if no categorizable expenses
+        return {
+            items: allCategories.map(name => ({
+                name,
+                monthly: monthlyTotals[name] || 0,
+                yearly: yearlyTotals[name] || 0
+            })).sort((a, b) => b.yearly - a.yearly), // Sort by yearly total desc
+            monthlyGrandTotal,
+            yearlyGrandTotal
+        };
+    }, [transactions, currentMonth, currentYear]);
+
+    if (categoryStats.items.length === 0) {
+        return null;
     }
 
     return (
         <div className="glass-panel category-table-container">
-            <h3>{currentMonth.split('-')[1]}月の勘定科目別集計</h3>
+            <h3>{currentYear}年 勘定科目別集計</h3>
             <div className="table-wrapper">
                 <table className="category-table">
                     <thead>
                         <tr>
                             <th>勘定科目</th>
-                            <th className="amount-cell">金額</th>
+                            <th className="amount-cell">{currentMonthNum}月</th>
+                            <th className="amount-cell">年間合計</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {categoryTotals.items.map(item => (
+                        {categoryStats.items.map(item => (
                             <tr key={item.name}>
                                 <td>{item.name}</td>
-                                <td className="amount-cell">¥{item.amount.toLocaleString()}</td>
+                                <td className="amount-cell">¥{item.monthly.toLocaleString()}</td>
+                                <td className="amount-cell yearly-highlight">¥{item.yearly.toLocaleString()}</td>
                             </tr>
                         ))}
                     </tbody>
                     <tfoot>
                         <tr className="total-row">
                             <td>合計支出</td>
-                            <td className="amount-cell">¥{categoryTotals.grandTotal.toLocaleString()}</td>
+                            <td className="amount-cell">¥{categoryStats.monthlyGrandTotal.toLocaleString()}</td>
+                            <td className="amount-cell">¥{categoryStats.yearlyGrandTotal.toLocaleString()}</td>
                         </tr>
                     </tfoot>
                 </table>

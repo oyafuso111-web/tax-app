@@ -74,45 +74,45 @@ function App() {
     // Format each transaction
     transactions.forEach(t => {
       const row = [
-        // Use Excel-compatible text format to prevent scientific notation (e.g., ="ID")
         `="${t.id}"`,
         t.date,
         t.type === 'income' ? '収入' : '支出',
         t.amount,
-        // Wrap description in quotes to handle commas safely
         `"${t.description.replace(/"/g, '""')}"`,
         `"${(t.category || '').replace(/"/g, '""')}"`
       ];
       csvRows.push(row.join(','));
     });
 
-    // Create Blob and download link (Adding Excel BOM for UTF-8)
+    // Create Blob (Adding Excel BOM for UTF-8)
     const csvContent = csvRows.join('\n');
     const blob = new Blob(
       [new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent],
       { type: 'text/csv;charset=utf-8' }
     );
     
+    // Use URL.createObjectURL and click a hidden link
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     
-    // Set Japanese filename
     const dateStr = new Date().toISOString().split('T')[0];
     const fileName = `収支データ_${dateStr}.csv`;
     
-    link.setAttribute('href', url);
-    link.setAttribute('download', fileName);
-    link.style.visibility = 'hidden';
+    link.href = url;
+    link.download = fileName;
     
-    // For iOS compatibility, ensure the link is in the DOM and manually clicked
+    // Ensure the link is appended to body for some browsers (including Safari)
     document.body.appendChild(link);
+    
+    // Explicitly click for download
     link.click();
 
-    // Cleanup
-    setTimeout(() => {
+    // Clean up
+    // We keep it in the DOM for a very short moment to ensure click completes
+    requestAnimationFrame(() => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-    }, 100);
+    });
   };
 
   return (

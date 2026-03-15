@@ -56,9 +56,15 @@
     border-bottom: none;
 }
 
+.yearly-highlight {
+    color: var(--accent-color);
+    background: rgba(99, 102, 241, 0.02);
+}
+
 @media (max-width: 600px) {
     .category-table th, 
     .category-table td {
-        padding: 10px 12px;
+        padding: 10px 8px;
+        font-size: 0.85rem;
     }
 }
