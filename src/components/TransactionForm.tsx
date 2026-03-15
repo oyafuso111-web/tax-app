@@ -7,7 +7,7 @@ interface TransactionFormProps {
     onAddTransaction: (transaction: Omit<Transaction, 'id'>) => void;
 }
 
-const BLUE_RETURN_CATEGORIES = [
+export const BLUE_RETURN_CATEGORIES = [
     '消耗品費',
     '旅費交通費',
     '通信費',

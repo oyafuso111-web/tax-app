@@ -81,7 +81,7 @@ export function TransactionList({ transactions, currentMonth, onDelete, onUpdate
                                         className="edit-input"
                                     >
                                         <option value="">(未分類)</option>
-                                        {BLUE_RETURN_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                                        {BLUE_RETURN_CATEGORIES.map((c: string) => <option key={c} value={c}>{c}</option>)}
                                     </select>
                                 </div>
                                 <div className="edit-actions">
@@ -105,7 +105,7 @@ export function TransactionList({ transactions, currentMonth, onDelete, onUpdate
                                     </span>
                                     <button
                                         className="delete-btn"
-                                        onClick={(e) => {
+                                        onClick={(e: React.MouseEvent) => {
                                             e.stopPropagation();
                                             onDelete(transaction.id);
                                         }}
