@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { Transaction } from './types';
 import { TransactionForm } from './components/TransactionForm';
 import { MonthlySummary } from './components/MonthlySummary';
@@ -6,27 +6,15 @@ import { TransactionList } from './components/TransactionList';
 import { MonthlyChart } from './components/MonthlyChart';
 import { YearlyChart } from './components/YearlyChart';
 import { MonthlyCategoryTable } from './components/MonthlyCategoryTable';
+import { supabase } from './lib/supabase';
 import './App.css';
 
 function App() {
-  const [transactions, setTransactions] = useState<Transaction[]>(() => {
-    const saved = localStorage.getItem('tax-app-transactions');
-    if (saved) {
-      try {
-        const parsed: Transaction[] = JSON.parse(saved);
-        // Fix malformed dates created by automated subagent tests e.g. "202512-12-08" -> "2025-12-08"
-        return parsed.map(t => {
-          if (t.date && t.date.match(/^\d{6}-\d{2}-\d{2}$/)) {
-            return { ...t, date: `${t.date.substring(0, 4)}-${t.date.substring(4, 6)}-${t.date.substring(10)}` };
-          }
-          if (t.date && t.date.length === 7 && t.date.match(/^\d{4}-\d{2}$/)) {
-            return { ...t, date: `${t.date}-01` };
-          }
-          return t;
-        });
-      } catch (e) {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().split('T')[0].slice(0, 7));
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  });
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -50,7 +38,8 @@ function App() {
     const { data, error } = await supabase
       .from('transactions')
       .select('*')
-      .eq('user_id', user.id);
+      .eq('user_id', user.id)
+      .order('date', { ascending: false });
     
     if (error) {
       console.error('Error fetching transactions:', error);
@@ -63,20 +52,32 @@ function App() {
     if (user) {
       fetchTransactions();
     } else {
-      // Load from localStorage if not logged in (for guest mode or before migration)
-      const saved = localStorage.getItem('tax-transactions');
-      if (saved) setTransactions(JSON.parse(saved));
+      // Load from localStorage if not logged in (legacy support)
+      const saved = localStorage.getItem('tax-app-transactions');
+      if (saved) {
+        try {
+          setTransactions(JSON.parse(saved));
+        } catch (e) {
+          console.error('Failed to parse localStorage', e);
+        }
+      }
     }
   }, [user, fetchTransactions]);
 
   // 3. Migration Logic
   useEffect(() => {
     if (user) {
-      const localData = localStorage.getItem('tax-transactions');
+      const localData = localStorage.getItem('tax-app-transactions');
       if (localData) {
-        const parsed = JSON.parse(localData);
-        if (parsed.length > 0) {
-          migrateData(parsed);
+        try {
+          const parsed = JSON.parse(localData);
+          if (parsed.length > 0) {
+            migrateData(parsed);
+          } else {
+            localStorage.removeItem('tax-app-transactions');
+          }
+        } catch (e) {
+          console.error('Migration failed', e);
         }
       }
     }
@@ -92,7 +93,7 @@ function App() {
 
     const { error } = await supabase.from('transactions').upsert(transactionsToSync);
     if (!error) {
-      localStorage.removeItem('tax-transactions');
+      localStorage.removeItem('tax-app-transactions');
       fetchTransactions();
       alert('ローカルデータをオンラインに同期しました！');
     }
@@ -112,7 +113,7 @@ function App() {
     } else {
       const updated = [transaction, ...transactions];
       setTransactions(updated);
-      localStorage.setItem('tax-transactions', JSON.stringify(updated));
+      localStorage.setItem('tax-app-transactions', JSON.stringify(updated));
     }
   };
 
@@ -124,7 +125,7 @@ function App() {
     } else {
       const updated = transactions.filter((t) => t.id !== id);
       setTransactions(updated);
-      localStorage.setItem('tax-transactions', JSON.stringify(updated));
+      localStorage.setItem('tax-app-transactions', JSON.stringify(updated));
     }
   };
 
@@ -136,7 +137,7 @@ function App() {
     } else {
       const updated = transactions.map((t) => (t.id === updatedTx.id ? updatedTx : t));
       setTransactions(updated);
-      localStorage.setItem('tax-transactions', JSON.stringify(updated));
+      localStorage.setItem('tax-app-transactions', JSON.stringify(updated));
     }
   };
 
@@ -158,11 +159,9 @@ function App() {
   const handleExportCSV = () => {
     if (transactions.length === 0) return;
 
-    // Create CSV headers in Japanese
     const headers = ['管理ID', '日付', '収支タイプ', '金額', '内容・メモ', '勘定科目'];
     const csvRows = [headers.join(',')];
 
-    // Format each transaction
     transactions.forEach(t => {
       const row = [
         `="${t.id}"`,
@@ -175,12 +174,10 @@ function App() {
       csvRows.push(row.join(','));
     });
 
-    // Generate CSV data with Japanese headers and BOM for Excel
     const csvContent = csvRows.join('\n');
     const dateStr = new Date().toISOString().split('T')[0];
     const fileName = `収支データ_${dateStr}.csv`;
 
-    // Attempt to use Web Share API for better mobile support (especially iOS Chrome)
     const blob = new Blob(
       [new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent],
       { type: 'text/csv;charset=utf-8' }
@@ -193,21 +190,81 @@ function App() {
         title: '収支データ出力',
         text: 'Tax Appから出力された収支データ(CSV)です。'
       }).catch(err => {
-        if (err.name !== 'AbortError') {
-          console.error('Share failed:', err);
-        }
+        if (err.name !== 'AbortError') console.error('Share failed:', err);
       });
       return;
     }
 
-    // Desktop/Fallback: Use Data URL or URL.createObjectURL
     const encodedContent = encodeURIComponent(csvContent);
     const dataUrl = `data:text/csv;charset=utf-8,%EF%BB%BF${encodedContent}`;
-    
     const link = document.createElement('a');
     link.setAttribute('href', dataUrl);
     link.setAttribute('download', fileName);
-    
+    link.style.display = 'none';
+    document.body.appendChild(link);
+    try {
+      link.click();
+    } catch (e) {
+      window.location.href = dataUrl;
+    }
+    requestAnimationFrame(() => {
+      document.body.removeChild(link);
+    });
+  };
+
+  if (loading) return <div className="loading">ロード中...</div>;
+
+  return (
+    <div className="app-container">
+      <header className="app-header">
+        <div className="header-text">
+          <h1 className="app-title">Tax App</h1>
+          <p className="app-subtitle">シンプル収支管理アプリ</p>
+        </div>
+        <div className="header-actions">
+          {user ? (
+            <div className="user-info">
+              <span className="user-email">{user.email}</span>
+              <button onClick={handleLogout} className="logout-btn">ログアウト</button>
+            </div>
+          ) : (
+            <button onClick={handleGoogleLogin} className="login-btn">ログイン</button>
+          )}
+          <button
+            onClick={handleExportCSV}
+            className="export-btn"
+            disabled={transactions.length === 0}
+            title="CSV形式でダウンロード"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            CSV出力
+          </button>
+        </div>
+      </header>
+
+      <main className="content-grid">
+        <aside className="left-column">
+          <TransactionForm onAddTransaction={handleAddTransaction} />
+          {!user && (
+            <div className="glass-panel login-prompt" style={{ marginTop: '16px', textAlign: 'center', padding: '20px' }}>
+              <p style={{ fontSize: '0.9rem', marginBottom: '12px', color: 'var(--text-secondary)' }}>
+                ログインするとスマホと同期できます
+              </p>
+              <button onClick={handleGoogleLogin} className="login-btn" style={{ width: '100%' }}>
+                Googleでログイン
+              </button>
+            </div>
+          )}
+          <MonthlyChart transactions={transactions} currentMonth={currentMonth} />
+        </aside>
+
+        <section className="right-column">
+          <div className="month-selector glass-panel" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '12px 16px', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <input
                 type="number"
                 value={currentMonth.split('-')[0]}
@@ -223,7 +280,6 @@ function App() {
               />
               <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}>年</span>
             </div>
-
             <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <select
                 value={currentMonth.split('-')[1]}
@@ -242,6 +298,7 @@ function App() {
               </select>
             </div>
           </div>
+          
           <MonthlySummary transactions={transactions} currentMonth={currentMonth} />
           <TransactionList
             transactions={transactions}
@@ -252,7 +309,7 @@ function App() {
         </section>
       </main>
 
-      <section className="bottom-row">
+      <section className="bottom-row" style={{ marginTop: '24px' }}>
         <YearlyChart transactions={transactions} currentMonth={currentMonth} />
         <MonthlyCategoryTable transactions={transactions} currentMonth={currentMonth} />
       </section>
