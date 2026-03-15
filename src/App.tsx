@@ -134,7 +134,6 @@ function App() {
       document.body.removeChild(link);
     });
   };
- Riverside
 
   return (
     <div className="app-container">
