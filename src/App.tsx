@@ -25,47 +25,134 @@ function App() {
           return t;
         });
       } catch (e) {
-        return [];
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [currentMonth, setCurrentMonth] = useState(new Date().toISOString().split('T')[0].slice(0, 7));
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  // 1. Auth state handling
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // 2. Fetch data from Supabase
+  const fetchTransactions = useCallback(async () => {
+    if (!user) return;
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', user.id);
+    
+    if (error) {
+      console.error('Error fetching transactions:', error);
+    } else {
+      setTransactions(data || []);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      fetchTransactions();
+    } else {
+      // Load from localStorage if not logged in (for guest mode or before migration)
+      const saved = localStorage.getItem('tax-transactions');
+      if (saved) setTransactions(JSON.parse(saved));
+    }
+  }, [user, fetchTransactions]);
+
+  // 3. Migration Logic
+  useEffect(() => {
+    if (user) {
+      const localData = localStorage.getItem('tax-transactions');
+      if (localData) {
+        const parsed = JSON.parse(localData);
+        if (parsed.length > 0) {
+          migrateData(parsed);
+        }
       }
     }
-    return [];
-  });
+  }, [user]);
 
-  const [currentMonth, setCurrentMonth] = useState(() => {
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    return `${year}-${month}`;
-  });
+  const migrateData = async (localTransactions: Transaction[]) => {
+    if (!user) return;
+    
+    const transactionsToSync = localTransactions.map(t => ({
+      ...t,
+      user_id: user.id
+    }));
 
-  // Persist to local storage
-  useEffect(() => {
-    localStorage.setItem('tax-app-transactions', JSON.stringify(transactions));
-  }, [transactions]);
+    const { error } = await supabase.from('transactions').upsert(transactionsToSync);
+    if (!error) {
+      localStorage.removeItem('tax-transactions');
+      fetchTransactions();
+      alert('ローカルデータをオンラインに同期しました！');
+    }
+  };
 
-  const handleAddTransaction = (newTx: Omit<Transaction, 'id'>) => {
-    // Generate ID in YYYYMMDDHHmmss format based on current time
-    const now = new Date();
-    const id = now.getFullYear().toString() +
-      String(now.getMonth() + 1).padStart(2, '0') +
-      String(now.getDate()).padStart(2, '0') +
-      String(now.getHours()).padStart(2, '0') +
-      String(now.getMinutes()).padStart(2, '0') +
-      String(now.getSeconds()).padStart(2, '0');
-
+  const handleAddTransaction = async (newTransaction: Omit<Transaction, 'id'>) => {
     const transaction: Transaction = {
-      ...newTx,
-      id,
+      ...newTransaction,
+      id: crypto.randomUUID(),
+      user_id: user?.id
     };
-    setTransactions((prev) => [transaction, ...prev]);
+
+    if (user) {
+      const { error } = await supabase.from('transactions').insert([transaction]);
+      if (error) console.error('Error adding transaction:', error);
+      else fetchTransactions();
+    } else {
+      const updated = [transaction, ...transactions];
+      setTransactions(updated);
+      localStorage.setItem('tax-transactions', JSON.stringify(updated));
+    }
   };
 
-  const handleDeleteTransaction = (id: string) => {
-    setTransactions((prev) => prev.filter((t) => t.id !== id));
+  const handleDeleteTransaction = async (id: string) => {
+    if (user) {
+      const { error } = await supabase.from('transactions').delete().eq('id', id);
+      if (error) console.error('Error deleting transaction:', error);
+      else fetchTransactions();
+    } else {
+      const updated = transactions.filter((t) => t.id !== id);
+      setTransactions(updated);
+      localStorage.setItem('tax-transactions', JSON.stringify(updated));
+    }
   };
 
-  const handleUpdateTransaction = (updatedTx: Transaction) => {
-    setTransactions((prev) => prev.map((t) => (t.id === updatedTx.id ? updatedTx : t)));
+  const handleUpdateTransaction = async (updatedTx: Transaction) => {
+    if (user) {
+      const { error } = await supabase.from('transactions').update(updatedTx).eq('id', updatedTx.id);
+      if (error) console.error('Error updating transaction:', error);
+      else fetchTransactions();
+    } else {
+      const updated = transactions.map((t) => (t.id === updatedTx.id ? updatedTx : t));
+      setTransactions(updated);
+      localStorage.setItem('tax-transactions', JSON.stringify(updated));
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+    if (error) alert('ログインエラー: ' + error.message);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setTransactions([]);
   };
 
   const handleExportCSV = () => {
@@ -121,51 +208,6 @@ function App() {
     link.setAttribute('href', dataUrl);
     link.setAttribute('download', fileName);
     
-    link.style.display = 'none';
-    document.body.appendChild(link);
-    
-    try {
-      link.click();
-    } catch (e) {
-      window.location.href = dataUrl;
-    }
-
-    requestAnimationFrame(() => {
-      document.body.removeChild(link);
-    });
-  };
-
-  return (
-    <div className="app-container">
-      <header className="app-header">
-        <div className="header-text">
-          <h1 className="app-title">Tax App</h1>
-          <p className="app-subtitle">シンプル収支管理アプリ</p>
-        </div>
-        <button
-          onClick={handleExportCSV}
-          className="export-btn"
-          disabled={transactions.length === 0}
-          title="CSV形式でダウンロード"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
-          CSV出力
-        </button>
-      </header>
-
-      <main className="content-grid">
-        <aside className="left-column">
-          <TransactionForm onAddTransaction={handleAddTransaction} />
-          <MonthlyChart transactions={transactions} currentMonth={currentMonth} />
-        </aside>
-
-        <section className="right-column">
-          <div className="month-selector glass-panel" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'flex-end', gap: '8px', padding: '12px 16px', borderRadius: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
               <input
                 type="number"
                 value={currentMonth.split('-')[0]}
