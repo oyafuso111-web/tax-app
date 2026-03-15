@@ -66,16 +66,17 @@ function App() {
   const handleExportCSV = () => {
     if (transactions.length === 0) return;
 
-    // Create CSV headers
-    const headers = ['ID', 'Date', 'Type', 'Amount', 'Description', 'Category'];
+    // Create CSV headers in Japanese
+    const headers = ['管理ID', '日付', '収支タイプ', '金額', '内容・メモ', '勘定科目'];
     const csvRows = [headers.join(',')];
 
     // Format each transaction
     transactions.forEach(t => {
       const row = [
-        t.id,
+        // Use Excel-compatible text format to prevent scientific notation (e.g., ="ID")
+        `="${t.id}"`,
         t.date,
-        t.type,
+        t.type === 'income' ? '収入' : '支出',
         t.amount,
         // Wrap description in quotes to handle commas safely
         `"${t.description.replace(/"/g, '""')}"`,
@@ -88,19 +89,29 @@ function App() {
     const csvContent = csvRows.join('\n');
     const blob = new Blob(
       [new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent],
-      { type: 'text/csv;charset=utf-8;' }
+      { type: 'text/csv;charset=utf-8' }
     );
+    
     const url = URL.createObjectURL(blob);
-
     const link = document.createElement('a');
-    link.href = url;
-    link.download = `tax_app_transactions_${new Date().toISOString().split('T')[0]}.csv`;
+    
+    // Set Japanese filename
+    const dateStr = new Date().toISOString().split('T')[0];
+    const fileName = `収支データ_${dateStr}.csv`;
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', fileName);
+    link.style.visibility = 'hidden';
+    
+    // For iOS compatibility, ensure the link is in the DOM and manually clicked
     document.body.appendChild(link);
     link.click();
 
     // Cleanup
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 100);
   };
 
   return (
