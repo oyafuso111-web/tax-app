@@ -61,55 +61,57 @@ export function YearlyChart({ transactions, currentMonth }: YearlyChartProps) {
         <div className="glass-panel yearly-chart-container">
             <h3>{currentYear}年の年間推移</h3>
             <div className="yearly-chart-wrapper">
-                <ResponsiveContainer width="100%" height={350}>
-                    <ComposedChart
-                        data={chartData}
-                        margin={{
-                            top: 20,
-                            right: 10,
-                            left: 20,
-                            bottom: 5,
-                        }}
-                    >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} dy={10} />
-                        <YAxis
-                            yAxisId="left"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: '#64748b' }}
-                            tickFormatter={(value) => `¥${value.toLocaleString()}`}
-                            width={80}
-                        />
-                        <YAxis
-                            yAxisId="right"
-                            orientation="right"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fill: '#64748b' }}
-                            tickFormatter={(value) => `¥${value.toLocaleString()}`}
-                            width={80}
-                        />
-                        <Tooltip
-                            formatter={(value: any) => `¥${Number(value).toLocaleString()}`}
-                            cursor={{ fill: 'rgba(226, 232, 240, 0.4)' }}
-                            contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                        />
-                        <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                        <Bar yAxisId="left" dataKey="Income" name="収入" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                        <Bar yAxisId="left" dataKey="Expense" name="支出" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={40} />
-                        <Line
-                            yAxisId="right"
-                            type="monotone"
-                            dataKey="CumulativeBalance"
-                            name="累積収支"
-                            stroke="#3b82f6"
-                            strokeWidth={3}
-                            dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
-                            activeDot={{ r: 6 }}
-                        />
-                    </ComposedChart>
-                </ResponsiveContainer>
+                <div className="chart-scroll-inner">
+                    <ResponsiveContainer width="100%" height={350}>
+                        <ComposedChart
+                            data={chartData}
+                            margin={{
+                                top: 20,
+                                right: 10,
+                                left: 20,
+                                bottom: 5,
+                            }}
+                        >
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                            <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#64748b' }} dy={10} />
+                            <YAxis
+                                yAxisId="left"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#64748b' }}
+                                tickFormatter={(value) => `¥${value.toLocaleString()}`}
+                                width={80}
+                            />
+                            <YAxis
+                                yAxisId="right"
+                                orientation="right"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fill: '#64748b' }}
+                                tickFormatter={(value) => `¥${value.toLocaleString()}`}
+                                width={80}
+                            />
+                            <Tooltip
+                                formatter={(value: any) => `¥${Number(value).toLocaleString()}`}
+                                cursor={{ fill: 'rgba(226, 232, 240, 0.4)' }}
+                                contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                            />
+                            <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                            <Bar yAxisId="left" dataKey="Income" name="収入" fill="#10b981" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                            <Bar yAxisId="left" dataKey="Expense" name="支出" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                            <Line
+                                yAxisId="right"
+                                type="monotone"
+                                dataKey="CumulativeBalance"
+                                name="累積収支"
+                                stroke="#3b82f6"
+                                strokeWidth={3}
+                                dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
+                                activeDot={{ r: 6 }}
+                            />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                </div>
             </div>
         </div>
     );

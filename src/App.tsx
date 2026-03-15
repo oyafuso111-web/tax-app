@@ -5,6 +5,7 @@ import { MonthlySummary } from './components/MonthlySummary';
 import { TransactionList } from './components/TransactionList';
 import { MonthlyChart } from './components/MonthlyChart';
 import { YearlyChart } from './components/YearlyChart';
+import { MonthlyCategoryTable } from './components/MonthlyCategoryTable';
 import './App.css';
 
 function App() {
@@ -190,6 +191,7 @@ function App() {
 
       <section className="bottom-row">
         <YearlyChart transactions={transactions} currentMonth={currentMonth} />
+        <MonthlyCategoryTable transactions={transactions} currentMonth={currentMonth} />
       </section>
     </div>
   );
