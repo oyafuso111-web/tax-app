@@ -85,6 +85,74 @@
     color: var(--danger-color);
 }
 
+.transaction-item.editing {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    background: #f8fafc;
+    border: 1px solid var(--accent-color);
+}
+
+.transaction-category-tag {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    background: #f1f5f9;
+    border-radius: 4px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.edit-form-inline {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.edit-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+@media (max-width: 480px) {
+    .edit-fields {
+        grid-template-columns: 1fr;
+    }
+}
+
+.edit-input {
+    padding: 8px;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    width: 100%;
+}
+
+.edit-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.save-btn, .cancel-btn {
+    padding: 6px 16px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.save-btn {
+    background: var(--accent-color);
+    color: white;
+}
+
+.cancel-btn {
+    background: #e2e8f0;
+    color: var(--text-primary);
+}
+
 .delete-btn {
     color: #94a3b8;
     font-size: 1.25rem;

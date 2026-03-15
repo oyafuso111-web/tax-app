@@ -64,6 +64,10 @@ function App() {
     setTransactions((prev) => prev.filter((t) => t.id !== id));
   };
 
+  const handleUpdateTransaction = (updatedTx: Transaction) => {
+    setTransactions((prev) => prev.map((t) => (t.id === updatedTx.id ? updatedTx : t)));
+  };
+
   const handleExportCSV = () => {
     if (transactions.length === 0) return;
 
@@ -84,34 +88,32 @@ function App() {
       csvRows.push(row.join(','));
     });
 
-    // Create Blob (Adding Excel BOM for UTF-8)
+    // For universal mobile support (especially in-app browsers like Google App)
+    // We try the standard Blob first, and if it might be restricted, the Data URL is our safest bet for small files.
     const csvContent = csvRows.join('\n');
-    const blob = new Blob(
-      [new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent],
-      { type: 'text/csv;charset=utf-8' }
-    );
-    
-    // Use URL.createObjectURL and click a hidden link
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
+    const encodedContent = encodeURIComponent(csvContent);
+    const dataUrl = `data:text/csv;charset=utf-8,%EF%BB%BF${encodedContent}`;
     
     const dateStr = new Date().toISOString().split('T')[0];
     const fileName = `収支データ_${dateStr}.csv`;
+
+    const link = document.createElement('a');
+    link.setAttribute('href', dataUrl);
+    link.setAttribute('download', fileName);
     
-    link.href = url;
-    link.download = fileName;
-    
-    // Ensure the link is appended to body for some browsers (including Safari)
+    // Style adjustments to prevent blocking
+    link.style.display = 'none';
     document.body.appendChild(link);
     
-    // Explicitly click for download
-    link.click();
+    try {
+      link.click();
+    } catch (e) {
+      // Fallback: direct window location change if click is blocked
+      window.location.href = dataUrl;
+    }
 
-    // Clean up
-    // We keep it in the DOM for a very short moment to ensure click completes
     requestAnimationFrame(() => {
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
     });
   };
 
@@ -185,6 +187,7 @@ function App() {
             transactions={transactions}
             currentMonth={currentMonth}
             onDelete={handleDeleteTransaction}
+            onUpdate={handleUpdateTransaction}
           />
         </section>
       </main>
