@@ -88,27 +88,45 @@ function App() {
       csvRows.push(row.join(','));
     });
 
-    // For universal mobile support (especially in-app browsers like Google App)
-    // We try the standard Blob first, and if it might be restricted, the Data URL is our safest bet for small files.
+    // Generate CSV data with Japanese headers and BOM for Excel
     const csvContent = csvRows.join('\n');
-    const encodedContent = encodeURIComponent(csvContent);
-    const dataUrl = `data:text/csv;charset=utf-8,%EF%BB%BF${encodedContent}`;
-    
     const dateStr = new Date().toISOString().split('T')[0];
     const fileName = `収支データ_${dateStr}.csv`;
 
+    // Attempt to use Web Share API for better mobile support (especially iOS Chrome)
+    const blob = new Blob(
+      [new Uint8Array([0xEF, 0xBB, 0xBF]), csvContent],
+      { type: 'text/csv;charset=utf-8' }
+    );
+    const file = new File([blob], fileName, { type: 'text/csv' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({
+        files: [file],
+        title: '収支データ出力',
+        text: 'Tax Appから出力された収支データ(CSV)です。'
+      }).catch(err => {
+        if (err.name !== 'AbortError') {
+          console.error('Share failed:', err);
+        }
+      });
+      return;
+    }
+
+    // Desktop/Fallback: Use Data URL or URL.createObjectURL
+    const encodedContent = encodeURIComponent(csvContent);
+    const dataUrl = `data:text/csv;charset=utf-8,%EF%BB%BF${encodedContent}`;
+    
     const link = document.createElement('a');
     link.setAttribute('href', dataUrl);
     link.setAttribute('download', fileName);
     
-    // Style adjustments to prevent blocking
     link.style.display = 'none';
     document.body.appendChild(link);
     
     try {
       link.click();
     } catch (e) {
-      // Fallback: direct window location change if click is blocked
       window.location.href = dataUrl;
     }
 
@@ -116,6 +134,7 @@ function App() {
       document.body.removeChild(link);
     });
   };
+ Riverside
 
   return (
     <div className="app-container">
