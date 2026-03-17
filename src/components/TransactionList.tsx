@@ -83,6 +83,14 @@ export function TransactionList({ transactions, currentMonth, onDelete, onUpdate
                                         <option value="">(未分類)</option>
                                         {BLUE_RETURN_CATEGORIES.map((c: string) => <option key={c} value={c}>{c}</option>)}
                                     </select>
+                                    <select
+                                        value={editForm.transaction_method || ''}
+                                        onChange={(e) => setEditForm({ ...editForm, transaction_method: e.target.value })}
+                                        className="edit-input"
+                                    >
+                                        <option value="">(取引手段なし)</option>
+                                        {['現金', '普通預金', 'クレジットカード', '未払金', 'その他'].map((m) => <option key={m} value={m}>{m}</option>)}
+                                    </select>
                                 </div>
                                 <div className="edit-actions">
                                     <button onClick={handleSaveEdit} className="save-btn">保存</button>
@@ -94,7 +102,10 @@ export function TransactionList({ transactions, currentMonth, onDelete, onUpdate
                                 <div className="transaction-info" onClick={() => handleStartEdit(transaction)} style={{ cursor: 'pointer', flex: 1 }}>
                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                         <span className="transaction-date">{transaction.date}</span>
-                                        <span className="transaction-category-tag">{transaction.category || '未分類'}</span>
+                                        <div style={{ display: 'flex', gap: '4px' }}>
+                                            {transaction.transaction_method && <span className="transaction-category-tag" style={{ background: 'rgba(99, 102, 241, 0.2)' }}>{transaction.transaction_method}</span>}
+                                            <span className="transaction-category-tag">{transaction.category || '未分類'}</span>
+                                        </div>
                                     </div>
                                     <span className="transaction-desc">{transaction.description}</span>
                                 </div>
@@ -107,7 +118,9 @@ export function TransactionList({ transactions, currentMonth, onDelete, onUpdate
                                         className="delete-btn"
                                         onClick={(e: React.MouseEvent) => {
                                             e.stopPropagation();
-                                            onDelete(transaction.id);
+                                            if (window.confirm('削除してよいですか？')) {
+                                                onDelete(transaction.id);
+                                            }
                                         }}
                                         title="削除"
                                     >

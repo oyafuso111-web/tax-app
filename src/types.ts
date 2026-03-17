@@ -7,5 +7,6 @@ export interface Transaction {
   amount: number;
   description: string;
   category?: string;
+  transaction_method?: string;
   user_id?: string;
 }

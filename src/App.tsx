@@ -173,7 +173,7 @@ function App() {
   const handleExportCSV = () => {
     if (transactions.length === 0) return;
 
-    const headers = ['管理ID', '日付', '収支タイプ', '金額', '内容・メモ', '勘定科目'];
+    const headers = ['管理ID', '日付', '収支タイプ', '金額', '内容・メモ', '勘定科目', '取引手段'];
     const csvRows = [headers.join(',')];
 
     transactions.forEach(t => {
@@ -183,7 +183,8 @@ function App() {
         t.type === 'income' ? '収入' : '支出',
         t.amount || 0,
         `"${(t.description || '').replace(/"/g, '""')}"`,
-        `"${(t.category || '').replace(/"/g, '""')}"`
+        `"${(t.category || '').replace(/"/g, '""')}"`,
+        `"${(t.transaction_method || '').replace(/"/g, '""')}"`
       ];
       csvRows.push(row.join(','));
     });

@@ -27,12 +27,21 @@ export const BLUE_RETURN_CATEGORIES = [
     '雑費'
 ];
 
+export const TRANSACTION_METHODS = [
+    '現金',
+    '普通預金',
+    'クレジットカード',
+    '未払金',
+    'その他'
+];
+
 export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [type, setType] = useState<TransactionType>('expense');
     const [amount, setAmount] = useState('');
     const [description, setDescription] = useState('');
     const [category, setCategory] = useState('');
+    const [transactionMethod, setTransactionMethod] = useState('');
     const [showScanner, setShowScanner] = useState(false);
     
     // Splitting logic states
@@ -68,6 +77,7 @@ export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
             amount: Number(amount),
             description: description + (category ? ` (${category})` : ''),
             category: category || undefined,
+            transaction_method: transactionMethod || undefined,
         });
 
         // Reset form
@@ -76,6 +86,7 @@ export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
         setAllocationRatio('100');
         setDescription('');
         setCategory('');
+        setTransactionMethod('');
         setShowScanner(false);
     };
 
@@ -221,6 +232,28 @@ export function TransactionForm({ onAddTransaction }: TransactionFormProps) {
                         <option value="">選択してください...</option>
                         {BLUE_RETURN_CATEGORIES.map(cat => (
                             <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                    </select>
+                </div>
+
+                <div className="form-group">
+                    <label>取引手段</label>
+                    <select 
+                        value={transactionMethod} 
+                        onChange={(e) => setTransactionMethod(e.target.value)}
+                        style={{
+                            width: '100%',
+                            padding: '10px 12px',
+                            background: 'rgba(255, 255, 255, 0.05)',
+                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            borderRadius: '8px',
+                            color: 'var(--text-primary)',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        <option value="">選択してください...</option>
+                        {TRANSACTION_METHODS.map(method => (
+                            <option key={method} value={method}>{method}</option>
                         ))}
                     </select>
                 </div>
