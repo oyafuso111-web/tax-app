@@ -199,7 +199,10 @@ function App() {
     );
     const file = new File([blob], fileName, { type: 'text/csv' });
 
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    // Check if mobile device
+    const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+    if (isMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
       navigator.share({
         files: [file],
         title: '収支データ出力',
